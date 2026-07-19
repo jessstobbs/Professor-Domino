@@ -224,13 +224,13 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         imageView.layer?.shadowRadius = 22
         imageView.layer?.shadowOffset = NSSize(width: 0, height: -6)
         imageView.onHoverChanged = { [weak self] isHovering in
-            self?.companionImageView?.image = self?.normalCompanionImage
+            self?.companionImageView?.image = isHovering ? self?.hoverCompanionImage : self?.normalCompanionImage
             if !isHovering {
                 self?.hideSpeechBubble()
             }
         }
         imageView.onNoseHoverChanged = { [weak self] isHovering in
-            self?.companionImageView?.image = isHovering ? self?.noseHoverCompanionImage : self?.normalCompanionImage
+            self?.companionImageView?.image = isHovering ? self?.noseHoverCompanionImage : self?.hoverCompanionImage
         }
         imageView.onNoseClick = { [weak self] in
             self?.showQuoteEditor()
