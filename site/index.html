@@ -10,20 +10,28 @@
     <main>
       <section class="hero">
         <div class="copy">
-          <p class="eyebrow">Desktop companion for tiny encouragements</p>
+          <p class="eyebrow">Phone and desktop companion for tiny encouragements</p>
           <h1>Professor Domino</h1>
           <p class="lede">
-            A small desktop friend who floats nearby and shares quotes throughout the day.
+            A small screen friend who floats nearby and shares quotes throughout the day.
           </p>
           <div class="actions">
-            <a class="primary" id="downloadButton" href="https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-mac-arm64.dmg">Download for Mac</a>
-            <a class="secondary" href="https://github.com/jessstobbs/Professor-Domino">View Project</a>
+            <a class="primary" id="downloadButton" href="https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-android.apk">Download for Android</a>
+            <a class="secondary" href="#desktop">Desktop Downloads</a>
           </div>
         </div>
         <img class="domino" src="./cat_companion.png" alt="Professor Domino desktop companion" />
       </section>
 
-      <section class="downloads" aria-label="Downloads">
+      <section class="phone" aria-label="Phone download">
+        <a href="https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-android.apk">
+          <span>Android phone</span>
+          <strong>Download APK</strong>
+          <small>Domino can float over other apps after you allow screen overlay permission.</small>
+        </a>
+      </section>
+
+      <section class="downloads" id="desktop" aria-label="Desktop downloads">
         <a href="https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-mac-arm64.dmg">
           <span>macOS</span>
           <strong>Download DMG</strong>
@@ -37,6 +45,10 @@
           <strong>Download AppImage</strong>
         </a>
       </section>
+
+      <p class="project-link">
+        <a href="https://github.com/jessstobbs/Professor-Domino">Project files on GitHub</a>
+      </p>
     </main>
     <script src="./script.js"></script>
   </body>

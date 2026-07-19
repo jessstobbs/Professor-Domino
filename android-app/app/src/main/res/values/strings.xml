@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Professor Domino</string>
+    <string name="notification_channel">Professor Domino</string>
+    <string name="notification_text">Domino is keeping you company.</string>
+</resources>

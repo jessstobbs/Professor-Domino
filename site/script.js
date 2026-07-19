@@ -1,4 +1,8 @@
 const downloads = {
+  android: {
+    label: "Download for Android",
+    href: "https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-android.apk"
+  },
   mac: {
     label: "Download for Mac",
     href: "https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-mac-arm64.dmg"
@@ -17,6 +21,7 @@ function detectPlatform() {
   const platform = `${navigator.userAgentData?.platform || navigator.platform || ""}`.toLowerCase();
   const userAgent = navigator.userAgent.toLowerCase();
 
+  if (userAgent.includes("android")) return "android";
   if (platform.includes("win") || userAgent.includes("windows")) return "windows";
   if (platform.includes("linux") || userAgent.includes("linux")) return "linux";
   return "mac";

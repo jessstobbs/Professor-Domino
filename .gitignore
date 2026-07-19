@@ -3,4 +3,8 @@ build/
 dist/
 dist.previous.*/
 node_modules/
+android-app/.gradle/
+android-app/app/build/
+android-app/build/
+android-dist/
 .DS_Store
