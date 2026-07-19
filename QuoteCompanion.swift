@@ -182,6 +182,9 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         imageView.layer?.shadowOffset = NSSize(width: 0, height: -6)
         imageView.onHoverChanged = { [weak self] isHovering in
             self?.companionImageView?.image = isHovering ? self?.hoverCompanionImage : self?.normalCompanionImage
+            if !isHovering {
+                self?.hideSpeechBubble()
+            }
         }
 
         let click = NSClickGestureRecognizer(target: self, action: #selector(showQuoteNow))
@@ -327,15 +330,21 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
 
         let hideWorkItem = DispatchWorkItem { [weak self] in
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = 0.22
-                self?.speechWindow?.animator().alphaValue = 0
-            } completionHandler: {
-                self?.speechWindow?.orderOut(nil)
-            }
+            self?.hideSpeechBubble()
         }
         speechHideWorkItem = hideWorkItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 7, execute: hideWorkItem)
+    }
+
+    private func hideSpeechBubble() {
+        speechHideWorkItem?.cancel()
+        speechHideWorkItem = nil
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.12
+            speechWindow?.animator().alphaValue = 0
+        } completionHandler: { [weak self] in
+            self?.speechWindow?.orderOut(nil)
+        }
     }
 
     @objc private func showQuoteNow() {
