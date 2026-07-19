@@ -515,7 +515,7 @@ final class SpeechBubbleView: NSView {
         NSGraphicsContext.restoreGraphicsState()
 
         NSColor(calibratedWhite: 0.06, alpha: 1).setStroke()
-        path.lineWidth = max(6, min(bounds.width, bounds.height) * 0.035)
+        path.lineWidth = max(4, min(bounds.width, bounds.height) * 0.021)
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()
