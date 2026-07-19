@@ -12,11 +12,13 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private let menu = NSMenu()
     private let quoteItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let nextQuoteItem = NSMenuItem(title: "Say Something Now", action: #selector(showQuoteNow), keyEquivalent: "s")
-    private let addQuoteItem = NSMenuItem(title: "Add Quote", action: #selector(addQuote), keyEquivalent: "a")
+    private let addQuoteItem = NSMenuItem(title: "Add Quote", action: #selector(showQuoteEditor), keyEquivalent: "a")
     private let toggleCompanionItem = NSMenuItem(title: "Hide Companion", action: #selector(toggleCompanion), keyEquivalent: "h")
     private let intervalMenu = NSMenu()
     private var companionWindow: NSWindow?
     private var speechWindow: NSWindow?
+    private var quoteEditorWindow: NSWindow?
+    private var quoteEditorContentView: QuoteEditorView?
     private var speechTextField: NSTextField?
     private var speechPawImageView: NSImageView?
     private var speechHideWorkItem: DispatchWorkItem?
@@ -198,7 +200,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         normalCompanionImage = NSImage(contentsOf: companionImageURL)
         hoverCompanionImage = NSImage(contentsOf: hoverCompanionImageURL)
 
-        let imageView = HoverImageView(frame: NSRect(origin: .zero, size: frame.size))
+        let imageView = DominoImageView(frame: NSRect(origin: .zero, size: frame.size))
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.image = normalCompanionImage
         imageView.wantsLayer = true
@@ -212,9 +214,15 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
                 self?.hideSpeechBubble()
             }
         }
-
-        let click = NSClickGestureRecognizer(target: self, action: #selector(showQuoteNow))
-        imageView.addGestureRecognizer(click)
+        imageView.onNoseHoverChanged = { isHovering in
+            imageView.noseIsHot = isHovering
+        }
+        imageView.onNoseClick = { [weak self] in
+            self?.showQuoteEditor()
+        }
+        imageView.onBodyClick = { [weak self] in
+            self?.showQuoteNow()
+        }
 
         window.contentView = imageView
         window.orderFrontRegardless()
@@ -349,6 +357,17 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func saveQuotes() {
+        do {
+            ensureEditableQuotesFile()
+            let data = try JSONEncoder.prettyPrinted.encode(quotes)
+            try data.write(to: quotesURL)
+            showQuoteInMenu(quotes.first ?? Quote(text: "Add a few quotes and I will keep you company.", author: nil))
+        } catch {
+            print("Could not save quotes: \(error)")
+        }
+    }
+
     private func scheduleTimer() {
         timer?.invalidate()
         timer = Timer.scheduledTimer(withTimeInterval: TimeInterval(intervalMinutes * 60), repeats: true) { [weak self] _ in
@@ -427,9 +446,64 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         notify(quote)
     }
 
-    @objc private func addQuote() {
-        ensureEditableQuotesFile()
-        NSWorkspace.shared.open(quotesURL)
+    @objc private func showQuoteEditor() {
+        loadQuotes()
+        if let quoteEditorWindow {
+            quoteEditorContentView?.reload(quotes: quotes)
+            quoteEditorWindow.orderFrontRegardless()
+            return
+        }
+
+        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let panelSize = NSSize(width: 520, height: 420)
+        let origin = NSPoint(
+            x: max(24, screenFrame.maxX - panelSize.width - 44),
+            y: max(24, screenFrame.minY + 120)
+        )
+        let window = NSWindow(
+            contentRect: NSRect(origin: origin, size: panelSize),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.hasShadow = false
+        window.level = .floating
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let editorView = QuoteEditorView(frame: NSRect(origin: .zero, size: panelSize))
+        editorView.fontProvider = { [weak self] size in
+            self?.speechFont(size: size) ?? NSFont.systemFont(ofSize: size, weight: .semibold)
+        }
+        editorView.applyFonts()
+        editorView.onAddQuote = { [weak self] text in
+            guard let self else { return }
+            self.quotes.append(Quote(text: text, author: nil))
+            self.saveQuotes()
+            self.quoteEditorContentView?.reload(quotes: self.quotes)
+        }
+        editorView.onUpdateQuote = { [weak self] index, text in
+            guard let self, self.quotes.indices.contains(index) else { return }
+            self.quotes[index] = Quote(text: text, author: self.quotes[index].author)
+            self.saveQuotes()
+            self.quoteEditorContentView?.reload(quotes: self.quotes)
+        }
+        editorView.onDeleteQuote = { [weak self] index in
+            guard let self, self.quotes.indices.contains(index) else { return }
+            self.quotes.remove(at: index)
+            self.saveQuotes()
+            self.quoteEditorContentView?.reload(quotes: self.quotes)
+        }
+        editorView.onClose = { [weak self] in
+            self?.quoteEditorWindow?.orderOut(nil)
+        }
+        editorView.reload(quotes: quotes)
+
+        window.contentView = editorView
+        quoteEditorWindow = window
+        quoteEditorContentView = editorView
+        window.orderFrontRegardless()
     }
 
     @objc private func toggleCompanion() {
@@ -440,6 +514,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         } else {
             companionWindow?.orderOut(nil)
             speechWindow?.orderOut(nil)
+            quoteEditorWindow?.orderOut(nil)
             toggleCompanionItem.title = "Show Companion"
         }
     }
@@ -458,8 +533,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openQuotes() {
-        ensureEditableQuotesFile()
-        NSWorkspace.shared.open(quotesURL)
+        showQuoteEditor()
     }
 
     @objc private func reloadQuotes() {
@@ -522,15 +596,32 @@ final class SpeechBubbleView: NSView {
     }
 }
 
-final class HoverImageView: NSImageView {
+final class DominoImageView: NSImageView {
     var onHoverChanged: ((Bool) -> Void)?
+    var onNoseHoverChanged: ((Bool) -> Void)?
+    var onNoseClick: (() -> Void)?
+    var onBodyClick: (() -> Void)?
+    var noseIsHot = false {
+        didSet { needsDisplay = true }
+    }
     private var trackingArea: NSTrackingArea?
+    private var isMouseInside = false
+    private var isMouseOverNose = false
+
+    private var noseRect: NSRect {
+        NSRect(
+            x: bounds.width * 0.455,
+            y: bounds.height * 0.475,
+            width: bounds.width * 0.095,
+            height: bounds.height * 0.085
+        )
+    }
 
     override func updateTrackingAreas() {
         if let trackingArea {
             removeTrackingArea(trackingArea)
         }
-        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .activeAlways, .inVisibleRect]
+        let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect]
         let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
@@ -538,12 +629,229 @@ final class HoverImageView: NSImageView {
     }
 
     override func mouseEntered(with event: NSEvent) {
+        isMouseInside = true
         onHoverChanged?(true)
+        updateNoseHover(with: event)
     }
 
     override func mouseExited(with event: NSEvent) {
+        isMouseInside = false
+        isMouseOverNose = false
         onHoverChanged?(false)
+        onNoseHoverChanged?(false)
     }
+
+    override func mouseMoved(with event: NSEvent) {
+        updateNoseHover(with: event)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if noseRect.contains(point) {
+            onNoseClick?()
+        } else {
+            onBodyClick?()
+        }
+    }
+
+    private func updateNoseHover(with event: NSEvent) {
+        guard isMouseInside else { return }
+        let point = convert(event.locationInWindow, from: nil)
+        let nowOverNose = noseRect.contains(point)
+        guard nowOverNose != isMouseOverNose else { return }
+        isMouseOverNose = nowOverNose
+        onNoseHoverChanged?(nowOverNose)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard noseIsHot else { return }
+
+        NSColor(calibratedRed: 1.0, green: 0.43, blue: 0.58, alpha: 0.92).setFill()
+        let nose = NSBezierPath(ovalIn: noseRect.insetBy(dx: noseRect.width * 0.12, dy: noseRect.height * 0.08))
+        nose.fill()
+
+        NSColor(calibratedWhite: 0.02, alpha: 0.92).setFill()
+        let leftPupil = NSBezierPath(ovalIn: NSRect(
+            x: bounds.width * 0.472,
+            y: bounds.height * 0.61,
+            width: bounds.width * 0.018,
+            height: bounds.height * 0.024
+        ))
+        let rightPupil = NSBezierPath(ovalIn: NSRect(
+            x: bounds.width * 0.514,
+            y: bounds.height * 0.61,
+            width: bounds.width * 0.018,
+            height: bounds.height * 0.024
+        ))
+        leftPupil.fill()
+        rightPupil.fill()
+    }
+}
+
+final class QuoteEditorView: NSView, NSTextFieldDelegate {
+    var onAddQuote: ((String) -> Void)?
+    var onUpdateQuote: ((Int, String) -> Void)?
+    var onDeleteQuote: ((Int) -> Void)?
+    var onClose: (() -> Void)?
+    var fontProvider: ((CGFloat) -> NSFont)?
+
+    private let scrollView = NSScrollView()
+    private let stackView = NSStackView()
+    private let inputField = NSTextField()
+    private let titleField = NSTextField(labelWithString: "Dom's quotes")
+    private let closeButton = NSButton(title: "x", target: nil, action: nil)
+    private var editFields: [NSTextField: Int] = [:]
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        configure()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        configure()
+    }
+
+    private func configure() {
+        wantsLayer = true
+        layer?.backgroundColor = NSColor.clear.cgColor
+
+        closeButton.target = self
+        closeButton.action = #selector(close)
+        closeButton.isBordered = false
+        closeButton.frame = NSRect(x: bounds.maxX - 52, y: bounds.maxY - 50, width: 34, height: 30)
+        closeButton.autoresizingMask = [.minXMargin, .minYMargin]
+        addSubview(closeButton)
+
+        titleField.textColor = NSColor(calibratedWhite: 0.06, alpha: 1)
+        titleField.frame = NSRect(x: 42, y: bounds.maxY - 58, width: 260, height: 38)
+        titleField.autoresizingMask = [.maxXMargin, .minYMargin]
+        addSubview(titleField)
+
+        inputField.placeholderString = "Type a new quote and press Enter"
+        inputField.delegate = self
+        inputField.target = self
+        inputField.action = #selector(addFromInput)
+        inputField.frame = NSRect(x: 42, y: 38, width: bounds.width - 84, height: 38)
+        inputField.autoresizingMask = [.width, .maxYMargin]
+        inputField.bezelStyle = .roundedBezel
+        addSubview(inputField)
+
+        scrollView.frame = NSRect(x: 42, y: 90, width: bounds.width - 84, height: bounds.height - 160)
+        scrollView.autoresizingMask = [.width, .height]
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+
+        stackView.orientation = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 10
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+
+        let documentView = NSView()
+        documentView.addSubview(stackView)
+        scrollView.documentView = documentView
+        addSubview(scrollView)
+
+        NSLayoutConstraint.activate([
+            stackView.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
+            stackView.topAnchor.constraint(equalTo: documentView.topAnchor),
+            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
+        ])
+        applyFonts()
+    }
+
+    func applyFonts() {
+        titleField.font = fontProvider?(32) ?? NSFont.systemFont(ofSize: 24, weight: .bold)
+        closeButton.font = fontProvider?(26) ?? NSFont.systemFont(ofSize: 22, weight: .bold)
+        inputField.font = fontProvider?(24) ?? NSFont.systemFont(ofSize: 18, weight: .semibold)
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 8, dy: 8), xRadius: 34, yRadius: 34)
+
+        NSGraphicsContext.saveGraphicsState()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.18)
+        shadow.shadowBlurRadius = 12
+        shadow.shadowOffset = NSSize(width: 0, height: -4)
+        shadow.set()
+        NSColor(calibratedRed: 1.0, green: 0.992, blue: 0.965, alpha: 0.98).setFill()
+        path.fill()
+        NSGraphicsContext.restoreGraphicsState()
+
+        NSColor(calibratedWhite: 0.06, alpha: 1).setStroke()
+        path.lineWidth = 4
+        path.stroke()
+    }
+
+    func reload(quotes: [Quote]) {
+        editFields.removeAll()
+        stackView.arrangedSubviews.forEach {
+            stackView.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+
+        for (index, quote) in quotes.enumerated() {
+            let row = NSStackView()
+            row.orientation = .horizontal
+            row.alignment = .centerY
+            row.spacing = 8
+            row.translatesAutoresizingMaskIntoConstraints = false
+
+            let field = NSTextField(string: quote.text)
+            field.font = fontProvider?(22) ?? NSFont.systemFont(ofSize: 16, weight: .medium)
+            field.delegate = self
+            field.target = self
+            field.action = #selector(updateFromField(_:))
+            field.bezelStyle = .roundedBezel
+            field.lineBreakMode = .byTruncatingTail
+            editFields[field] = index
+
+            let deleteButton = IndexedButton(title: "x", target: self, action: #selector(deleteQuote(_:)))
+            deleteButton.index = index
+            deleteButton.isBordered = false
+            deleteButton.font = fontProvider?(24) ?? NSFont.systemFont(ofSize: 18, weight: .bold)
+
+            row.addArrangedSubview(field)
+            row.addArrangedSubview(deleteButton)
+            field.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -42).isActive = true
+            deleteButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
+            stackView.addArrangedSubview(row)
+            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+        }
+
+        layoutSubtreeIfNeeded()
+        let height = max(scrollView.contentView.bounds.height, CGFloat(quotes.count) * 42)
+        scrollView.documentView?.setFrameSize(NSSize(width: scrollView.contentView.bounds.width, height: height))
+    }
+
+    @objc private func addFromInput() {
+        let text = inputField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        inputField.stringValue = ""
+        onAddQuote?(text)
+    }
+
+    @objc private func updateFromField(_ sender: NSTextField) {
+        guard let index = editFields[sender] else { return }
+        let text = sender.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        onUpdateQuote?(index, text)
+    }
+
+    @objc private func deleteQuote(_ sender: IndexedButton) {
+        onDeleteQuote?(sender.index)
+    }
+
+    @objc private func close() {
+        onClose?()
+    }
+}
+
+final class IndexedButton: NSButton {
+    var index = 0
 }
 
 let app = NSApplication.shared
