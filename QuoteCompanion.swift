@@ -17,6 +17,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var companionWindow: NSWindow?
     private var speechWindow: NSWindow?
     private var speechTextField: NSTextField?
+    private var speechPawImageView: NSImageView?
     private var speechHideWorkItem: DispatchWorkItem?
     private var companionImageView: NSImageView?
     private var normalCompanionImage: NSImage?
@@ -77,6 +78,19 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .appendingPathComponent("assets")
             .appendingPathComponent("fonts")
             .appendingPathComponent("ZenLoop-Regular.ttf")
+    }
+
+    private var pawprintURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("pawprint.svg")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("pawprint.svg")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -222,17 +236,34 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         let bubbleView = SpeechBubbleView(frame: NSRect(origin: .zero, size: bubbleSize))
         let textField = NSTextField(labelWithString: "")
         textField.frame = speechTextFrame(for: bubbleSize)
-        textField.font = NSFont(name: speechFontName, size: 34) ?? NSFont.systemFont(ofSize: 24, weight: .regular)
+        textField.font = speechFont(size: 34)
         textField.textColor = NSColor(calibratedRed: 0.15, green: 0.12, blue: 0.10, alpha: 1)
+        let textShadow = NSShadow()
+        textShadow.shadowColor = NSColor(calibratedWhite: 0, alpha: 0.18)
+        textShadow.shadowBlurRadius = 0
+        textShadow.shadowOffset = NSSize(width: 0.45, height: -0.45)
+        textField.shadow = textShadow
         textField.maximumNumberOfLines = 5
         textField.lineBreakMode = .byWordWrapping
         textField.cell?.wraps = true
         textField.cell?.usesSingleLineMode = false
         bubbleView.addSubview(textField)
 
+        let pawSize = NSSize(width: 34, height: 34)
+        let pawImageView = NSImageView(frame: NSRect(
+            x: textField.frame.maxX + 6,
+            y: textField.frame.minY + 2,
+            width: pawSize.width,
+            height: pawSize.height
+        ))
+        pawImageView.imageScaling = .scaleProportionallyUpOrDown
+        pawImageView.image = NSImage(contentsOf: pawprintURL)
+        bubbleView.addSubview(pawImageView)
+
         window.contentView = bubbleView
         speechWindow = window
         speechTextField = textField
+        speechPawImageView = pawImageView
     }
 
     private func speechTextFrame(for bubbleSize: NSSize) -> NSRect {
@@ -242,6 +273,11 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             width: bubbleSize.width * 0.69,
             height: bubbleSize.height * 0.43
         )
+    }
+
+    private func speechFont(size: CGFloat) -> NSFont {
+        let base = NSFont(name: speechFontName, size: size) ?? NSFont.systemFont(ofSize: size, weight: .semibold)
+        return NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
     }
 
     private func startIdleAnimation() {
@@ -320,7 +356,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         } else {
             fontSize = 34
         }
-        speechTextField?.font = NSFont(name: speechFontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize, weight: .regular)
+        speechTextField?.font = speechFont(size: fontSize)
+        speechPawImageView?.isHidden = body.count > 110
         speechHideWorkItem?.cancel()
         speechWindow?.orderFrontRegardless()
 
