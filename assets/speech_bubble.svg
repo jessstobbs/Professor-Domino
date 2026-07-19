@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" fill="none">
+  <path
+    d="M394 42
+       C198 42 42 152 42 300
+       C42 430 170 492 366 476
+       C391 474 410 472 430 468
+       C445 494 476 514 519 520
+       C492 501 486 475 505 444
+       C662 414 758 320 746 223
+       C731 102 598 42 394 42 Z"
+    fill="#fffdf6"
+    stroke="#111111"
+    stroke-width="14"
+    stroke-linecap="round"
+    stroke-linejoin="round"/>
+</svg>
