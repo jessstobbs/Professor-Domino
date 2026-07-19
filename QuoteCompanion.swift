@@ -395,9 +395,9 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         idleResetWorkItem?.cancel()
         let sequence: [(TimeInterval, NSImage?)] = [
             (0.00, idleEarsBackImage),
-            (0.16, normalCompanionImage),
-            (0.28, idleEarsBackImage),
-            (0.46, normalCompanionImage)
+            (0.08, normalCompanionImage),
+            (0.14, idleEarsBackImage),
+            (0.23, normalCompanionImage)
         ]
 
         var finalWorkItem: DispatchWorkItem?
