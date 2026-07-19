@@ -3,6 +3,7 @@ build/
 dist/
 dist.previous.*/
 node_modules/
+work/
 android-app/.gradle/
 android-app/app/build/
 android-app/build/
