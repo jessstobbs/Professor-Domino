@@ -1,8 +1,44 @@
 # Professor Domino
 
-A tiny native macOS desktop companion that sends quotes throughout the day.
+A tiny desktop companion that sends quotes throughout the day.
 
-## Run
+Professor Domino now has an Electron version for macOS, Windows, and Linux. The original Swift macOS prototype is still in this repo as `QuoteCompanion.swift`.
+
+## Run the Electron App
+
+```bash
+cd /Users/jessica/workspaces/jess/projects/Home-Projects/quote-companion
+npm install
+npm start
+```
+
+## Package Installers
+
+Create a local unpacked app for your current computer:
+
+```bash
+npm run pack
+```
+
+Create release installers:
+
+```bash
+npm run dist:mac
+npm run dist:win
+npm run dist:linux
+```
+
+The packaged apps appear in `dist/`.
+
+For real cross-platform releases, use the included GitHub Actions workflow:
+
+```text
+.github/workflows/release.yml
+```
+
+It builds on macOS, Windows, and Linux whenever you trigger it manually, push to `main`, or create a GitHub release.
+
+## Run the Original Swift Prototype
 
 ```bash
 cd /Users/jessica/workspaces/jess/projects/Home-Projects/quote-companion
@@ -10,13 +46,14 @@ chmod +x run.sh
 ./run.sh
 ```
 
-The companion appears on the desktop and in the menu bar.
+The companion appears on the desktop and in the menu bar. This version is macOS-only.
 
 ## Use
 
 - Hover over Domino to show an immediate quote.
 - Drag Domino to move him around the screen.
 - Hover over Domino's nose, then click it, to open the quote editor.
+- Double-click Domino to open the quote editor in the Electron version.
 - `Say Something Now` shows an immediate quote.
 - `Add Quote` opens the quote editor.
 - `Every` changes the quote interval.

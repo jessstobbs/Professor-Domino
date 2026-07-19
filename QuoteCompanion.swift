@@ -23,17 +23,17 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var speechPawImageView: NSImageView?
     private var speechHideWorkItem: DispatchWorkItem?
     private var companionImageView: DominoImageView?
+    private var earOverlayImageView: NSImageView?
     private var normalCompanionImage: NSImage?
     private var hoverCompanionImage: NSImage?
     private var noseHoverCompanionImage: NSImage?
     private var idleEarsBackImage: NSImage?
+    private var idleEarOverlayImage: NSImage?
     private var idleWinkImage: NSImage?
-    private var idleYawnImage: NSImage?
     private var editorOpenImage: NSImage?
     private var timer: Timer?
     private var idleAnimationTimer: Timer?
     private var standbyAnimationTimer: Timer?
-    private var yawnAnimationTimer: Timer?
     private var idleResetWorkItem: DispatchWorkItem?
     private var quotes: [Quote] = []
     private var recentQuoteIndexes: [Int] = []
@@ -115,6 +115,19 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .appendingPathComponent("cat_companion_idle_ears_back.png")
     }
 
+    private var idleEarOverlayImageURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("cat_companion_idle_ear_overlay.png")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("cat_companion_idle_ear_overlay.png")
+    }
+
     private var idleWinkImageURL: URL {
         if let resourceURL = Bundle.main.resourceURL {
             return resourceURL
@@ -126,19 +139,6 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .deletingLastPathComponent()
             .appendingPathComponent("assets")
             .appendingPathComponent("cat_companion_idle_wink.png")
-    }
-
-    private var idleYawnImageURL: URL {
-        if let resourceURL = Bundle.main.resourceURL {
-            return resourceURL
-                .appendingPathComponent("assets")
-                .appendingPathComponent("cat_companion_idle_yawn.png")
-        }
-
-        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
-            .deletingLastPathComponent()
-            .appendingPathComponent("assets")
-            .appendingPathComponent("cat_companion_idle_yawn.png")
     }
 
     private var editorOpenImageURL: URL {
@@ -279,11 +279,15 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         hoverCompanionImage = NSImage(contentsOf: hoverCompanionImageURL)
         noseHoverCompanionImage = NSImage(contentsOf: noseHoverCompanionImageURL)
         idleEarsBackImage = NSImage(contentsOf: idleEarsBackImageURL)
+        idleEarOverlayImage = NSImage(contentsOf: idleEarOverlayImageURL)
         idleWinkImage = NSImage(contentsOf: idleWinkImageURL)
-        idleYawnImage = NSImage(contentsOf: idleYawnImageURL)
         editorOpenImage = NSImage(contentsOf: editorOpenImageURL)
 
-        let imageView = DominoImageView(frame: NSRect(origin: .zero, size: frame.size))
+        let containerView = NSView(frame: NSRect(origin: .zero, size: frame.size))
+        containerView.wantsLayer = true
+
+        let imageView = DominoImageView(frame: containerView.bounds)
+        imageView.autoresizingMask = [.width, .height]
         imageView.imageScaling = .scaleProportionallyUpOrDown
         imageView.image = normalCompanionImage
         imageView.wantsLayer = true
@@ -322,11 +326,21 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             self?.updateDominoImage()
         }
 
-        window.contentView = imageView
+        let earOverlayView = NSImageView(frame: containerView.bounds)
+        earOverlayView.autoresizingMask = [.width, .height]
+        earOverlayView.imageScaling = .scaleProportionallyUpOrDown
+        earOverlayView.image = idleEarOverlayImage
+        earOverlayView.isHidden = true
+
+        containerView.addSubview(imageView)
+        containerView.addSubview(earOverlayView)
+
+        window.contentView = containerView
         window.orderFrontRegardless()
 
         companionWindow = window
         companionImageView = imageView
+        earOverlayImageView = earOverlayView
         configureSpeechWindow(relativeTo: frame)
         scheduleStandbyAnimations()
     }
@@ -334,6 +348,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private func updateDominoImage() {
         idleResetWorkItem?.cancel()
         idleResetWorkItem = nil
+        earOverlayImageView?.isHidden = true
         if dominoNoseIsHovered {
             companionImageView?.image = noseHoverCompanionImage
         } else if quoteEditorWindow?.isVisible == true {
@@ -353,10 +368,6 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         standbyAnimationTimer?.invalidate()
         standbyAnimationTimer = Timer.scheduledTimer(withTimeInterval: 29, repeats: true) { [weak self] _ in
             self?.playStandbyFrame(self?.idleWinkImage, duration: 0.65)
-        }
-        yawnAnimationTimer?.invalidate()
-        yawnAnimationTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
-            self?.playStandbyFrame(self?.idleYawnImage, duration: 1.35)
         }
     }
 
@@ -389,15 +400,15 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
               !dominoIsDragging,
               quoteEditorWindow?.isVisible != true,
               speechWindow?.isVisible != true,
-              let idleEarsBackImage
+              idleEarOverlayImage != nil
         else { return }
 
         idleResetWorkItem?.cancel()
         let sequence: [(TimeInterval, NSImage?)] = [
-            (0.00, idleEarsBackImage),
-            (0.08, normalCompanionImage),
-            (0.14, idleEarsBackImage),
-            (0.23, normalCompanionImage)
+            (0.00, idleEarOverlayImage),
+            (0.08, nil),
+            (0.14, idleEarOverlayImage),
+            (0.23, nil)
         ]
 
         var finalWorkItem: DispatchWorkItem?
@@ -410,7 +421,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
                       self.quoteEditorWindow?.isVisible != true,
                       self.speechWindow?.isVisible != true
                 else { return }
-                self.companionImageView?.image = image
+                self.earOverlayImageView?.isHidden = image == nil
             }
             finalWorkItem = workItem
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)

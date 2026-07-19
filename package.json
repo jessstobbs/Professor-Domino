@@ -1,0 +1,80 @@
+{
+  "name": "quote-companion",
+  "version": "1.0.0",
+  "description": "A tiny native macOS desktop companion that sends quotes throughout the day.",
+  "main": "electron-src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "electron . --smoke-test",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jessstobbs/Professor-Domino.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/jessstobbs/Professor-Domino/issues"
+  },
+  "homepage": "https://github.com/jessstobbs/Professor-Domino#readme",
+    "build": {
+    "appId": "com.jessstobbs.professor-domino",
+    "productName": "Professor Domino",
+    "artifactName": "Professor-Domino-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-src/**/*",
+      "assets/**/*",
+      "quotes.json",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "quotes.json",
+        "to": "quotes.json"
+      },
+      {
+        "from": "assets",
+        "to": "assets"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    },
+    "publish": [
+      {
+        "provider": "github"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3"
+  }
+}
