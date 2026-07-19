@@ -775,12 +775,10 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
     var fontProvider: ((CGFloat) -> NSFont)?
 
     private let scrollView = NSScrollView()
-    private let stackView = NSStackView()
     private let inputField = NSTextField()
     private let titleField = NSTextField(labelWithString: "Dom's quotes")
     private let closeButton = NSButton(title: "x", target: nil, action: nil)
     private var editFields: [NSTextField: Int] = [:]
-    private var fieldConstraints: [NSLayoutConstraint] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -822,23 +820,9 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
         scrollView.autoresizingMask = [.width, .height]
         scrollView.drawsBackground = false
         scrollView.hasVerticalScroller = true
-
-        stackView.orientation = .vertical
-        stackView.alignment = .leading
-        stackView.spacing = 10
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-
         let documentView = NSView()
-        documentView.addSubview(stackView)
         scrollView.documentView = documentView
         addSubview(scrollView)
-
-        NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
-            stackView.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
-            stackView.topAnchor.constraint(equalTo: documentView.topAnchor),
-            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
-        ])
         applyFonts()
     }
 
@@ -872,22 +856,21 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
 
     func reload(quotes: [Quote]) {
         editFields.removeAll()
-        NSLayoutConstraint.deactivate(fieldConstraints)
-        fieldConstraints.removeAll()
-        stackView.arrangedSubviews.forEach {
-            stackView.removeArrangedSubview($0)
-            $0.removeFromSuperview()
-        }
+        scrollView.documentView?.subviews.forEach { $0.removeFromSuperview() }
+
+        let rowHeight: CGFloat = 38
+        let rowGap: CGFloat = 10
+        let contentWidth = max(1, scrollView.contentView.bounds.width)
+        let contentHeight = max(scrollView.contentView.bounds.height, CGFloat(max(1, quotes.count)) * (rowHeight + rowGap))
+        let documentView = NSView(frame: NSRect(x: 0, y: 0, width: contentWidth, height: contentHeight))
 
         for (index, quote) in quotes.enumerated() {
-            let row = NSStackView()
-            row.orientation = .horizontal
-            row.alignment = .centerY
-            row.spacing = 8
-            row.translatesAutoresizingMaskIntoConstraints = false
+            let y = contentHeight - CGFloat(index + 1) * rowHeight - CGFloat(index) * rowGap
 
             let field = NSTextField(string: quote.text)
+            field.frame = NSRect(x: 0, y: y, width: contentWidth - 42, height: rowHeight)
             field.font = fontProvider?(22) ?? NSFont.systemFont(ofSize: 16, weight: .medium)
+            field.textColor = NSColor(calibratedWhite: 0.08, alpha: 1)
             field.delegate = self
             field.target = self
             field.action = #selector(updateFromField(_:))
@@ -897,30 +880,17 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
             editFields[field] = index
 
             let deleteButton = IndexedButton(title: "x", target: self, action: #selector(deleteQuote(_:)))
+            deleteButton.frame = NSRect(x: contentWidth - 34, y: y + 2, width: 28, height: rowHeight - 4)
             deleteButton.index = index
             deleteButton.isBordered = false
             deleteButton.font = fontProvider?(24) ?? NSFont.systemFont(ofSize: 18, weight: .bold)
+            deleteButton.contentTintColor = NSColor(calibratedWhite: 0.06, alpha: 1)
 
-            row.addArrangedSubview(field)
-            row.addArrangedSubview(deleteButton)
-            let fieldWidth = field.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -42)
-            fieldWidth.isActive = true
-            fieldConstraints.append(fieldWidth)
-            deleteButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
-            stackView.addArrangedSubview(row)
-            let rowWidth = row.widthAnchor.constraint(equalTo: stackView.widthAnchor)
-            rowWidth.isActive = true
-            fieldConstraints.append(rowWidth)
+            documentView.addSubview(field)
+            documentView.addSubview(deleteButton)
         }
 
-        layoutSubtreeIfNeeded()
-        let height = max(scrollView.contentView.bounds.height, CGFloat(max(1, quotes.count)) * 44)
-        scrollView.documentView?.frame = NSRect(
-            x: 0,
-            y: 0,
-            width: scrollView.contentView.bounds.width,
-            height: height
-        )
+        scrollView.documentView = documentView
     }
 
     func controlTextDidEndEditing(_ obj: Notification) {
