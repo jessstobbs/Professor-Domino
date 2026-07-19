@@ -1,6 +1,6 @@
-# Quote Companion
+# Professor Domino
 
-A tiny native macOS menu bar companion that sends quotes throughout the day.
+A tiny native macOS desktop companion that sends quotes throughout the day.
 
 ## Run
 
@@ -10,13 +10,38 @@ chmod +x run.sh
 ./run.sh
 ```
 
-The companion appears in the menu bar as a tiny cat portrait based on your reference photos.
+The companion appears on the desktop and in the menu bar.
 
 ## Use
 
-- `Say Something Now` shows an immediate quote and notification.
+- Click Domino to show an immediate quote.
+- `Say Something Now` shows an immediate quote.
+- `Add Quote` opens your editable quotes document.
 - `Every` changes the quote interval.
-- `Edit Quotes` opens `quotes.json`.
+- `Edit Quotes` opens your editable quotes document.
 - `Reload Quotes` reads your edited quote list without restarting.
 
-macOS may ask for permission to show notifications the first time it runs.
+## Quotes
+
+Domino creates and reads this file:
+
+```text
+~/Documents/Professor Domino/quotes.json
+```
+
+Add quotes using this format:
+
+```json
+[
+  {
+    "text": "Begin anywhere.",
+    "author": "John Cage"
+  },
+  {
+    "text": "Small steps still move the whole day.",
+    "author": null
+  }
+]
+```
+
+After editing, choose `Reload Quotes` from Domino's menu.

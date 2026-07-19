@@ -12,6 +12,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private let menu = NSMenu()
     private let quoteItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let nextQuoteItem = NSMenuItem(title: "Say Something Now", action: #selector(showQuoteNow), keyEquivalent: "s")
+    private let addQuoteItem = NSMenuItem(title: "Add Quote", action: #selector(addQuote), keyEquivalent: "a")
     private let toggleCompanionItem = NSMenuItem(title: "Hide Companion", action: #selector(toggleCompanion), keyEquivalent: "h")
     private let intervalMenu = NSMenu()
     private var companionWindow: NSWindow?
@@ -30,6 +31,14 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private let speechFontName = "Zen Loop"
 
     private var quotesURL: URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents")
+        return documents
+            .appendingPathComponent("Professor Domino", isDirectory: true)
+            .appendingPathComponent("quotes.json")
+    }
+
+    private var bundledQuotesURL: URL {
         if let resourceURL = Bundle.main.resourceURL {
             return resourceURL.appendingPathComponent("quotes.json")
         }
@@ -113,6 +122,9 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
 
         nextQuoteItem.target = self
         menu.addItem(nextQuoteItem)
+
+        addQuoteItem.target = self
+        menu.addItem(addQuoteItem)
 
         toggleCompanionItem.target = self
         menu.addItem(toggleCompanionItem)
@@ -300,6 +312,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     }
 
     private func loadQuotes() {
+        ensureEditableQuotesFile()
         do {
             let data = try Data(contentsOf: quotesURL)
             quotes = try JSONDecoder().decode([Quote].self, from: data)
@@ -309,6 +322,30 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
                 Quote(text: "The work teaches you how to do it.", author: nil),
                 Quote(text: "Small steps still move the whole day.", author: nil)
             ]
+        }
+    }
+
+    private func ensureEditableQuotesFile() {
+        guard !FileManager.default.fileExists(atPath: quotesURL.path) else { return }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: quotesURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if FileManager.default.fileExists(atPath: bundledQuotesURL.path) {
+                try FileManager.default.copyItem(at: bundledQuotesURL, to: quotesURL)
+            } else {
+                let fallbackQuotes = [
+                    Quote(text: "Begin anywhere.", author: "John Cage"),
+                    Quote(text: "The work teaches you how to do it.", author: nil),
+                    Quote(text: "Small steps still move the whole day.", author: nil)
+                ]
+                let data = try JSONEncoder.prettyPrinted.encode(fallbackQuotes)
+                try data.write(to: quotesURL)
+            }
+        } catch {
+            print("Could not create editable quotes file: \(error)")
         }
     }
 
@@ -390,6 +427,11 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         notify(quote)
     }
 
+    @objc private func addQuote() {
+        ensureEditableQuotesFile()
+        NSWorkspace.shared.open(quotesURL)
+    }
+
     @objc private func toggleCompanion() {
         companionVisible.toggle()
         if companionVisible {
@@ -416,6 +458,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openQuotes() {
+        ensureEditableQuotesFile()
         NSWorkspace.shared.open(quotesURL)
     }
 
@@ -428,6 +471,14 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         NSApp.terminate(nil)
     }
 
+}
+
+private extension JSONEncoder {
+    static var prettyPrinted: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }
 }
 
 final class SpeechBubbleView: NSView {
