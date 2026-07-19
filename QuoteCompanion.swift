@@ -304,7 +304,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private func scheduleStandbyAnimations() {
         idleAnimationTimer?.invalidate()
         idleAnimationTimer = Timer.scheduledTimer(withTimeInterval: 11, repeats: true) { [weak self] _ in
-            self?.playStandbyFrame(self?.idleEarsBackImage, duration: 0.42)
+            self?.playEarTwitch()
         }
         standbyAnimationTimer?.invalidate()
         standbyAnimationTimer = Timer.scheduledTimer(withTimeInterval: 29, repeats: true) { [weak self] _ in
@@ -330,7 +330,40 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             self.companionImageView?.image = self.normalCompanionImage
         }
         idleResetWorkItem = reset
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.42, execute: reset)
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: reset)
+    }
+
+    private func playEarTwitch() {
+        guard !dominoIsHovered,
+              !dominoNoseIsHovered,
+              quoteEditorWindow?.isVisible != true,
+              speechWindow?.isVisible != true,
+              let idleEarsBackImage
+        else { return }
+
+        idleResetWorkItem?.cancel()
+        let sequence: [(TimeInterval, NSImage?)] = [
+            (0.00, idleEarsBackImage),
+            (0.16, normalCompanionImage),
+            (0.28, idleEarsBackImage),
+            (0.46, normalCompanionImage)
+        ]
+
+        var finalWorkItem: DispatchWorkItem?
+        for (delay, image) in sequence {
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self,
+                      !self.dominoIsHovered,
+                      !self.dominoNoseIsHovered,
+                      self.quoteEditorWindow?.isVisible != true,
+                      self.speechWindow?.isVisible != true
+                else { return }
+                self.companionImageView?.image = image
+            }
+            finalWorkItem = workItem
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        }
+        idleResetWorkItem = finalWorkItem
     }
 
     private func configureSpeechWindow(relativeTo companionFrame: NSRect) {
