@@ -31,6 +31,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var recentQuoteIndexes: [Int] = []
     private var intervalMinutes = 180
     private var companionVisible = true
+    private var dominoIsHovered = false
+    private var dominoNoseIsHovered = false
     private let speechFontName = "Zen Loop"
 
     private var quotesURL: URL {
@@ -224,13 +226,18 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         imageView.layer?.shadowRadius = 22
         imageView.layer?.shadowOffset = NSSize(width: 0, height: -6)
         imageView.onHoverChanged = { [weak self] isHovering in
-            self?.companionImageView?.image = isHovering ? self?.hoverCompanionImage : self?.normalCompanionImage
+            self?.dominoIsHovered = isHovering
+            if !isHovering {
+                self?.dominoNoseIsHovered = false
+            }
+            self?.updateDominoImage()
             if !isHovering {
                 self?.hideSpeechBubble()
             }
         }
         imageView.onNoseHoverChanged = { [weak self] isHovering in
-            self?.companionImageView?.image = isHovering ? self?.noseHoverCompanionImage : self?.hoverCompanionImage
+            self?.dominoNoseIsHovered = isHovering
+            self?.updateDominoImage()
         }
         imageView.onNoseClick = { [weak self] in
             self?.showQuoteEditor()
@@ -246,6 +253,16 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         companionImageView = imageView
         configureSpeechWindow(relativeTo: frame)
         startIdleAnimation()
+    }
+
+    private func updateDominoImage() {
+        if dominoNoseIsHovered {
+            companionImageView?.image = noseHoverCompanionImage
+        } else if dominoIsHovered {
+            companionImageView?.image = hoverCompanionImage
+        } else {
+            companionImageView?.image = normalCompanionImage
+        }
     }
 
     private func configureSpeechWindow(relativeTo companionFrame: NSRect) {
@@ -475,7 +492,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             x: max(24, screenFrame.maxX - panelSize.width - 44),
             y: max(24, screenFrame.minY + 120)
         )
-        let window = NSWindow(
+        let window = FloatingInputWindow(
             contentRect: NSRect(origin: origin, size: panelSize),
             styleMask: [.borderless],
             backing: .buffered,
@@ -519,6 +536,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         quoteEditorWindow = window
         quoteEditorContentView = editorView
         window.orderFrontRegardless()
+        window.makeKey()
+        editorView.focusInput()
     }
 
     @objc private func toggleCompanion() {
@@ -634,7 +653,7 @@ final class DominoImageView: NSImageView {
             removeTrackingArea(trackingArea)
         }
         let options: NSTrackingArea.Options = [.mouseEnteredAndExited, .mouseMoved, .activeAlways, .inVisibleRect]
-        let area = NSTrackingArea(rect: bounds, options: options, owner: self, userInfo: nil)
+        let area = NSTrackingArea(rect: .zero, options: options, owner: self, userInfo: nil)
         addTrackingArea(area)
         trackingArea = area
         super.updateTrackingAreas()
@@ -648,9 +667,8 @@ final class DominoImageView: NSImageView {
 
     override func mouseExited(with event: NSEvent) {
         isMouseInside = false
-        isMouseOverNose = false
         onHoverChanged?(false)
-        onNoseHoverChanged?(false)
+        setNoseHover(false)
     }
 
     override func mouseMoved(with event: NSEvent) {
@@ -670,9 +688,13 @@ final class DominoImageView: NSImageView {
         guard isMouseInside else { return }
         let point = convert(event.locationInWindow, from: nil)
         let nowOverNose = noseRect.contains(point)
-        guard nowOverNose != isMouseOverNose else { return }
-        isMouseOverNose = nowOverNose
-        onNoseHoverChanged?(nowOverNose)
+        setNoseHover(nowOverNose)
+    }
+
+    private func setNoseHover(_ isHovering: Bool) {
+        guard isHovering != isMouseOverNose else { return }
+        isMouseOverNose = isHovering
+        onNoseHoverChanged?(isHovering)
     }
 
 }
@@ -690,6 +712,7 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
     private let titleField = NSTextField(labelWithString: "Dom's quotes")
     private let closeButton = NSButton(title: "x", target: nil, action: nil)
     private var editFields: [NSTextField: Int] = [:]
+    private var fieldConstraints: [NSLayoutConstraint] = []
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -721,6 +744,7 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
         inputField.delegate = self
         inputField.target = self
         inputField.action = #selector(addFromInput)
+        inputField.focusRingType = .none
         inputField.frame = NSRect(x: 42, y: 38, width: bounds.width - 84, height: 38)
         inputField.autoresizingMask = [.width, .maxYMargin]
         inputField.bezelStyle = .roundedBezel
@@ -750,6 +774,10 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
         applyFonts()
     }
 
+    func focusInput() {
+        window?.makeFirstResponder(inputField)
+    }
+
     func applyFonts() {
         titleField.font = fontProvider?(32) ?? NSFont.systemFont(ofSize: 24, weight: .bold)
         closeButton.font = fontProvider?(26) ?? NSFont.systemFont(ofSize: 22, weight: .bold)
@@ -776,6 +804,8 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
 
     func reload(quotes: [Quote]) {
         editFields.removeAll()
+        NSLayoutConstraint.deactivate(fieldConstraints)
+        fieldConstraints.removeAll()
         stackView.arrangedSubviews.forEach {
             stackView.removeArrangedSubview($0)
             $0.removeFromSuperview()
@@ -794,6 +824,7 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
             field.target = self
             field.action = #selector(updateFromField(_:))
             field.bezelStyle = .roundedBezel
+            field.focusRingType = .none
             field.lineBreakMode = .byTruncatingTail
             editFields[field] = index
 
@@ -804,15 +835,29 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
 
             row.addArrangedSubview(field)
             row.addArrangedSubview(deleteButton)
-            field.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -42).isActive = true
+            let fieldWidth = field.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -42)
+            fieldWidth.isActive = true
+            fieldConstraints.append(fieldWidth)
             deleteButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
             stackView.addArrangedSubview(row)
-            row.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+            let rowWidth = row.widthAnchor.constraint(equalTo: stackView.widthAnchor)
+            rowWidth.isActive = true
+            fieldConstraints.append(rowWidth)
         }
 
         layoutSubtreeIfNeeded()
-        let height = max(scrollView.contentView.bounds.height, CGFloat(quotes.count) * 42)
-        scrollView.documentView?.setFrameSize(NSSize(width: scrollView.contentView.bounds.width, height: height))
+        let height = max(scrollView.contentView.bounds.height, CGFloat(max(1, quotes.count)) * 44)
+        scrollView.documentView?.frame = NSRect(
+            x: 0,
+            y: 0,
+            width: scrollView.contentView.bounds.width,
+            height: height
+        )
+    }
+
+    func controlTextDidEndEditing(_ obj: Notification) {
+        guard let field = obj.object as? NSTextField, editFields[field] != nil else { return }
+        updateFromField(field)
     }
 
     @objc private func addFromInput() {
@@ -840,6 +885,11 @@ final class QuoteEditorView: NSView, NSTextFieldDelegate {
 
 final class IndexedButton: NSButton {
     var index = 0
+}
+
+final class FloatingInputWindow: NSWindow {
+    override var canBecomeKey: Bool { true }
+    override var canBecomeMain: Bool { true }
 }
 
 let app = NSApplication.shared
