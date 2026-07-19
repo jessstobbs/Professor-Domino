@@ -1,5 +1,9 @@
 name: Build Professor Domino Android
 
+# This workflow is only for quick Android test builds. Use
+# "Build and Publish Professor Domino" to publish public releases so that
+# /releases/latest/download/... never points at a half-populated release.
+
 on:
   push:
     branches: [main]

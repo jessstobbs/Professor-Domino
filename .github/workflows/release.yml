@@ -1,27 +1,36 @@
-name: Build Professor Domino
+name: Build and Publish Professor Domino
 
 on:
   push:
     branches: [main]
-  release:
-    types: [created, published]
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag, for example v1.0.3"
+        required: true
+      release_title:
+        description: "Release title"
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  desktop:
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
             script: dist:mac
+            artifact: professor-domino-mac
           - os: windows-latest
             script: dist:win
+            artifact: professor-domino-windows
           - os: ubuntu-latest
             script: dist:linux
+            artifact: professor-domino-linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -33,10 +42,94 @@ jobs:
       - run: npm run ${{ matrix.script }} -- --publish never
       - uses: actions/upload-artifact@v4
         with:
-          name: professor-domino-${{ matrix.os }}
-          path: dist/*
-      - name: Upload installers to release
-        if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.* --clobber
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/Professor-Domino-*.dmg
+            dist/Professor-Domino-*.zip
+            dist/Professor-Domino-*.exe
+            dist/Professor-Domino-*.AppImage
+            dist/Professor-Domino-*.deb
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install Gradle
+        run: |
+          curl -L https://services.gradle.org/distributions/gradle-8.9-bin.zip -o gradle.zip
+          unzip -q gradle.zip
+          echo "$PWD/gradle-8.9/bin" >> "$GITHUB_PATH"
+      - name: Build installable APK
+        run: gradle -p android-app :app:assembleDebug
+      - name: Prepare APK
+        run: |
+          mkdir -p android-dist
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk android-dist/Professor-Domino-android.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: professor-domino-android
+          path: android-dist/Professor-Domino-android.apk
+
+  publish:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+      - name: Verify release assets
+        run: |
+          set -euo pipefail
+          required=(
+            "Professor-Domino-android.apk"
+            "Professor-Domino-mac-arm64.dmg"
+            "Professor-Domino-win-x64.exe"
+            "Professor-Domino-linux-x86_64.AppImage"
+          )
+          for file in "${required[@]}"; do
+            test -f "release-files/$file" || {
+              echo "Missing required release asset: $file"
+              find release-files -maxdepth 2 -type f -print
+              exit 1
+            }
+          done
+      - name: Publish complete release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          RELEASE_TITLE: ${{ github.event.inputs.release_title }}
+        run: |
+          set -euo pipefail
+          title="${RELEASE_TITLE:-Professor Domino $RELEASE_TAG}"
+          notes="$(cat <<'NOTES'
+          Professor Domino phone and desktop release.
+
+          Downloads:
+          - Android: Professor-Domino-android.apk
+          - macOS: Professor-Domino-mac-arm64.dmg
+          - Windows: Professor-Domino-win-x64.exe
+          - Linux: Professor-Domino-linux-x86_64.AppImage
+
+          Android can float Domino over other apps after the user allows screen overlay permission. These apps are currently unsigned/debug-signed, so Android, macOS, and Windows may show security warnings during install.
+          NOTES
+          )"
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-files/* --clobber
+            gh release edit "$RELEASE_TAG" --title "$title" --notes "$notes" --latest
+          else
+            gh release create "$RELEASE_TAG" release-files/* --target "$GITHUB_SHA" --title "$title" --notes "$notes" --latest
+          fi
+
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > uploaded-assets.txt
+          for file in Professor-Domino-android.apk Professor-Domino-mac-arm64.dmg Professor-Domino-win-x64.exe Professor-Domino-linux-x86_64.AppImage; do
+            grep -Fx "$file" uploaded-assets.txt
+          done

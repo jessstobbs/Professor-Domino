@@ -36,7 +36,7 @@ For real cross-platform releases, use the included GitHub Actions workflow:
 .github/workflows/release.yml
 ```
 
-It builds on macOS, Windows, and Linux whenever you trigger it manually, push to `main`, or create a GitHub release.
+On pushes to `main`, it builds test artifacts. To publish a public release, run the workflow manually with a new tag like `v1.0.3`. It builds Android, macOS, Windows, and Linux first, verifies the expected download files exist, and only then creates or updates the latest GitHub release.
 
 ## Run the Original Swift Prototype
 
