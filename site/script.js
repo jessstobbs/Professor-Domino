@@ -9,7 +9,7 @@ const downloads = {
   },
   linux: {
     label: "Download for Linux",
-    href: "https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-linux-x64.AppImage"
+    href: "https://github.com/jessstobbs/Professor-Domino/releases/latest/download/Professor-Domino-linux-x86_64.AppImage"
   }
 };
 

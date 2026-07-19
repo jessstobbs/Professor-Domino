@@ -1,6 +1,6 @@
 {
   "name": "quote-companion",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A tiny native macOS desktop companion that sends quotes throughout the day.",
   "main": "electron-src/main.js",
   "scripts": {
@@ -17,14 +17,17 @@
     "url": "git+https://github.com/jessstobbs/Professor-Domino.git"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "name": "Jessica Stobbs",
+    "email": "jessstobbs96@gmail.com"
+  },
   "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/jessstobbs/Professor-Domino/issues"
   },
   "homepage": "https://github.com/jessstobbs/Professor-Domino#readme",
-    "build": {
+  "build": {
     "appId": "com.jessstobbs.professor-domino",
     "productName": "Professor Domino",
     "artifactName": "Professor-Domino-${os}-${arch}.${ext}",
@@ -62,6 +65,7 @@
     },
     "linux": {
       "category": "Utility",
+      "maintainer": "Jessica Stobbs <jessstobbs96@gmail.com>",
       "target": [
         "AppImage",
         "deb"
