@@ -37,6 +37,6 @@ jobs:
           path: dist/*
       - name: Upload installers to release
         if: github.event_name == 'release'
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/*.* --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
