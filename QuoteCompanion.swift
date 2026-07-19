@@ -22,15 +22,18 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var speechTextField: NSTextField?
     private var speechPawImageView: NSImageView?
     private var speechHideWorkItem: DispatchWorkItem?
-    private var companionImageView: NSImageView?
+    private var companionImageView: DominoImageView?
     private var normalCompanionImage: NSImage?
     private var hoverCompanionImage: NSImage?
     private var noseHoverCompanionImage: NSImage?
     private var idleEarsBackImage: NSImage?
     private var idleWinkImage: NSImage?
+    private var idleYawnImage: NSImage?
+    private var editorOpenImage: NSImage?
     private var timer: Timer?
     private var idleAnimationTimer: Timer?
     private var standbyAnimationTimer: Timer?
+    private var yawnAnimationTimer: Timer?
     private var idleResetWorkItem: DispatchWorkItem?
     private var quotes: [Quote] = []
     private var recentQuoteIndexes: [Int] = []
@@ -38,6 +41,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var companionVisible = true
     private var dominoIsHovered = false
     private var dominoNoseIsHovered = false
+    private var dominoIsDragging = false
+    private var quoteShownForCurrentHover = false
     private let speechFontName = "Zen Loop"
 
     private var quotesURL: URL {
@@ -121,6 +126,32 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .deletingLastPathComponent()
             .appendingPathComponent("assets")
             .appendingPathComponent("cat_companion_idle_wink.png")
+    }
+
+    private var idleYawnImageURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("cat_companion_idle_yawn.png")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("cat_companion_idle_yawn.png")
+    }
+
+    private var editorOpenImageURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("cat_companion_editor_open.png")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("cat_companion_editor_open.png")
     }
 
     private var zenLoopFontURL: URL {
@@ -249,6 +280,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         noseHoverCompanionImage = NSImage(contentsOf: noseHoverCompanionImageURL)
         idleEarsBackImage = NSImage(contentsOf: idleEarsBackImageURL)
         idleWinkImage = NSImage(contentsOf: idleWinkImageURL)
+        idleYawnImage = NSImage(contentsOf: idleYawnImageURL)
+        editorOpenImage = NSImage(contentsOf: editorOpenImageURL)
 
         let imageView = DominoImageView(frame: NSRect(origin: .zero, size: frame.size))
         imageView.imageScaling = .scaleProportionallyUpOrDown
@@ -262,9 +295,12 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             self?.dominoIsHovered = isHovering
             if !isHovering {
                 self?.dominoNoseIsHovered = false
+                self?.quoteShownForCurrentHover = false
             }
             self?.updateDominoImage()
-            if !isHovering {
+            if isHovering {
+                self?.showQuoteForHoverIfNeeded()
+            } else {
                 self?.hideSpeechBubble()
             }
         }
@@ -276,7 +312,14 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             self?.showQuoteEditor()
         }
         imageView.onBodyClick = { [weak self] in
-            self?.showQuoteNow()
+            self?.showQuoteForHoverIfNeeded()
+        }
+        imageView.onDragChanged = { [weak self] isDragging in
+            self?.dominoIsDragging = isDragging
+            if isDragging {
+                self?.hideSpeechBubble()
+            }
+            self?.updateDominoImage()
         }
 
         window.contentView = imageView
@@ -285,7 +328,6 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         companionWindow = window
         companionImageView = imageView
         configureSpeechWindow(relativeTo: frame)
-        startIdleAnimation()
         scheduleStandbyAnimations()
     }
 
@@ -294,7 +336,9 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         idleResetWorkItem = nil
         if dominoNoseIsHovered {
             companionImageView?.image = noseHoverCompanionImage
-        } else if dominoIsHovered {
+        } else if quoteEditorWindow?.isVisible == true {
+            companionImageView?.image = editorOpenImage
+        } else if dominoIsDragging {
             companionImageView?.image = hoverCompanionImage
         } else {
             companionImageView?.image = normalCompanionImage
@@ -310,11 +354,16 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         standbyAnimationTimer = Timer.scheduledTimer(withTimeInterval: 29, repeats: true) { [weak self] _ in
             self?.playStandbyFrame(self?.idleWinkImage, duration: 0.65)
         }
+        yawnAnimationTimer?.invalidate()
+        yawnAnimationTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
+            self?.playStandbyFrame(self?.idleYawnImage, duration: 1.35)
+        }
     }
 
     private func playStandbyFrame(_ image: NSImage?, duration: TimeInterval) {
         guard !dominoIsHovered,
               !dominoNoseIsHovered,
+              !dominoIsDragging,
               quoteEditorWindow?.isVisible != true,
               speechWindow?.isVisible != true,
               let image
@@ -325,7 +374,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         let reset = DispatchWorkItem { [weak self] in
             guard let self,
                   !self.dominoIsHovered,
-                  !self.dominoNoseIsHovered
+                  !self.dominoNoseIsHovered,
+                  !self.dominoIsDragging
             else { return }
             self.companionImageView?.image = self.normalCompanionImage
         }
@@ -336,6 +386,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private func playEarTwitch() {
         guard !dominoIsHovered,
               !dominoNoseIsHovered,
+              !dominoIsDragging,
               quoteEditorWindow?.isVisible != true,
               speechWindow?.isVisible != true,
               let idleEarsBackImage
@@ -355,6 +406,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
                 guard let self,
                       !self.dominoIsHovered,
                       !self.dominoNoseIsHovered,
+                      !self.dominoIsDragging,
                       self.quoteEditorWindow?.isVisible != true,
                       self.speechWindow?.isVisible != true
                 else { return }
@@ -532,20 +584,13 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     }
 
     private func showSpeechBubble(_ quote: Quote) {
+        guard quoteEditorWindow?.isVisible != true else { return }
+
+        repositionSpeechWindow()
         let author = quote.author.map { "\n- \($0)" } ?? ""
         let body = "\(quote.text)\(author)"
         speechTextField?.stringValue = body
-        let fontSize: CGFloat
-        if body.count > 90 {
-            fontSize = 25
-        } else if body.count > 58 {
-            fontSize = 28
-        } else if body.count > 36 {
-            fontSize = 31
-        } else {
-            fontSize = 34
-        }
-        speechTextField?.font = speechFont(size: fontSize)
+        speechTextField?.font = speechFont(size: 31)
         speechPawImageView?.isHidden = body.count > 110
         speechHideWorkItem?.cancel()
         speechWindow?.orderFrontRegardless()
@@ -560,6 +605,33 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
         speechHideWorkItem = hideWorkItem
         DispatchQueue.main.asyncAfter(deadline: .now() + 7, execute: hideWorkItem)
+    }
+
+    private func repositionSpeechWindow() {
+        guard let speechWindow else { return }
+        let companionFrame = companionWindow?.frame ?? NSRect(x: 900, y: 120, width: 420, height: 420)
+        let screenFrame = companionWindow?.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let bubbleSize = speechWindow.frame.size
+        let origin = NSPoint(
+            x: max(screenFrame.minX + 24, companionFrame.minX - bubbleSize.width + 88),
+            y: min(
+                screenFrame.maxY - bubbleSize.height - 24,
+                max(screenFrame.minY + 24, companionFrame.maxY - bubbleSize.height + 28)
+            )
+        )
+        speechWindow.setFrameOrigin(origin)
+    }
+
+    private func showQuoteForHoverIfNeeded() {
+        guard !quoteShownForCurrentHover,
+              !dominoNoseIsHovered,
+              !dominoIsDragging,
+              quoteEditorWindow?.isVisible != true
+        else { return }
+        quoteShownForCurrentHover = true
+        showQuoteNow()
     }
 
     private func hideSpeechBubble() {
@@ -583,16 +655,16 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         loadQuotes()
         if let quoteEditorWindow {
             quoteEditorContentView?.reload(quotes: quotes)
+            quoteEditorWindow.setFrameOrigin(quoteEditorOrigin(for: quoteEditorWindow.frame.size))
             quoteEditorWindow.orderFrontRegardless()
+            quoteEditorWindow.makeKey()
+            quoteEditorContentView?.focusInput()
+            updateDominoImage()
             return
         }
 
-        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let panelSize = NSSize(width: 520, height: 420)
-        let origin = NSPoint(
-            x: max(24, screenFrame.maxX - panelSize.width - 44),
-            y: max(24, screenFrame.minY + 120)
-        )
+        let origin = quoteEditorOrigin(for: panelSize)
         let window = FloatingInputWindow(
             contentRect: NSRect(origin: origin, size: panelSize),
             styleMask: [.borderless],
@@ -630,6 +702,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
         editorView.onClose = { [weak self] in
             self?.quoteEditorWindow?.orderOut(nil)
+            self?.updateDominoImage()
         }
         editorView.reload(quotes: quotes)
 
@@ -639,6 +712,21 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         window.orderFrontRegardless()
         window.makeKey()
         editorView.focusInput()
+        updateDominoImage()
+    }
+
+    private func quoteEditorOrigin(for panelSize: NSSize) -> NSPoint {
+        let companionFrame = companionWindow?.frame ?? NSRect(x: 900, y: 120, width: 420, height: 420)
+        let screenFrame = companionWindow?.screen?.visibleFrame
+            ?? NSScreen.main?.visibleFrame
+            ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        return NSPoint(
+            x: max(screenFrame.minX + 24, companionFrame.minX - panelSize.width + 78),
+            y: min(
+                screenFrame.maxY - panelSize.height - 24,
+                max(screenFrame.minY + 24, companionFrame.maxY - panelSize.height + 28)
+            )
+        )
     }
 
     @objc private func toggleCompanion() {
@@ -736,16 +824,20 @@ final class DominoImageView: NSImageView {
     var onNoseHoverChanged: ((Bool) -> Void)?
     var onNoseClick: (() -> Void)?
     var onBodyClick: (() -> Void)?
+    var onDragChanged: ((Bool) -> Void)?
     private var trackingArea: NSTrackingArea?
     private var isMouseInside = false
     private var isMouseOverNose = false
+    private var mouseDownScreenPoint: NSPoint?
+    private var mouseDownWindowOrigin: NSPoint?
+    private var didDrag = false
 
     private var noseRect: NSRect {
         NSRect(
-            x: bounds.width * 0.435,
-            y: bounds.height * 0.475,
-            width: bounds.width * 0.095,
-            height: bounds.height * 0.085
+            x: bounds.width * 0.425,
+            y: bounds.height * 0.471,
+            width: bounds.width * 0.105,
+            height: bounds.height * 0.094
         )
     }
 
@@ -777,12 +869,48 @@ final class DominoImageView: NSImageView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        mouseDownScreenPoint = NSEvent.mouseLocation
+        mouseDownWindowOrigin = window?.frame.origin
+        didDrag = false
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let window,
+              let mouseDownScreenPoint,
+              let mouseDownWindowOrigin
+        else { return }
+
+        let current = NSEvent.mouseLocation
+        let dx = current.x - mouseDownScreenPoint.x
+        let dy = current.y - mouseDownScreenPoint.y
+        if !didDrag, hypot(dx, dy) > 3 {
+            didDrag = true
+            setNoseHover(false)
+            onDragChanged?(true)
+        }
+
+        guard didDrag else { return }
+        window.setFrameOrigin(NSPoint(x: mouseDownWindowOrigin.x + dx, y: mouseDownWindowOrigin.y + dy))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        if didDrag {
+            didDrag = false
+            mouseDownScreenPoint = nil
+            mouseDownWindowOrigin = nil
+            onDragChanged?(false)
+            updateNoseHover(with: event)
+            return
+        }
+
         let point = convert(event.locationInWindow, from: nil)
         if noseRect.contains(point) {
             onNoseClick?()
         } else {
             onBodyClick?()
         }
+        mouseDownScreenPoint = nil
+        mouseDownWindowOrigin = nil
     }
 
     private func updateNoseHover(with event: NSEvent) {

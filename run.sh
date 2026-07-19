@@ -18,6 +18,8 @@ cp assets/cat_companion_hover.png "$resources_dir/assets/cat_companion_hover.png
 cp assets/cat_companion_nose_hover.png "$resources_dir/assets/cat_companion_nose_hover.png"
 cp assets/cat_companion_idle_ears_back.png "$resources_dir/assets/cat_companion_idle_ears_back.png"
 cp assets/cat_companion_idle_wink.png "$resources_dir/assets/cat_companion_idle_wink.png"
+cp assets/cat_companion_idle_yawn.png "$resources_dir/assets/cat_companion_idle_yawn.png"
+cp assets/cat_companion_editor_open.png "$resources_dir/assets/cat_companion_editor_open.png"
 cp assets/pawprint.svg "$resources_dir/assets/pawprint.svg"
 cp assets/fonts/Dosis-Variable.ttf "$resources_dir/assets/fonts/Dosis-Variable.ttf"
 cp assets/fonts/ZenLoop-Regular.ttf "$resources_dir/assets/fonts/ZenLoop-Regular.ttf"

@@ -14,11 +14,13 @@ The companion appears on the desktop and in the menu bar.
 
 ## Use
 
-- Click Domino to show an immediate quote.
+- Hover over Domino to show an immediate quote.
+- Drag Domino to move him around the screen.
+- Hover over Domino's nose, then click it, to open the quote editor.
 - `Say Something Now` shows an immediate quote.
-- `Add Quote` opens your editable quotes document.
+- `Add Quote` opens the quote editor.
 - `Every` changes the quote interval.
-- `Edit Quotes` opens your editable quotes document.
+- `Edit Quotes` opens the quote editor.
 - `Reload Quotes` reads your edited quote list without restarting.
 
 ## Quotes
