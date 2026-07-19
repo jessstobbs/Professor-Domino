@@ -961,6 +961,28 @@ final class IndexedButton: NSButton {
 final class FloatingInputWindow: NSWindow {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask).contains(.command),
+              let characters = event.charactersIgnoringModifiers?.lowercased()
+        else {
+            super.keyDown(with: event)
+            return
+        }
+
+        switch characters {
+        case "x":
+            firstResponder?.tryToPerform(#selector(NSText.cut(_:)), with: nil)
+        case "c":
+            firstResponder?.tryToPerform(#selector(NSText.copy(_:)), with: nil)
+        case "v":
+            firstResponder?.tryToPerform(#selector(NSText.paste(_:)), with: nil)
+        case "a":
+            firstResponder?.tryToPerform(#selector(NSResponder.selectAll(_:)), with: nil)
+        default:
+            super.keyDown(with: event)
+        }
+    }
 }
 
 let app = NSApplication.shared
