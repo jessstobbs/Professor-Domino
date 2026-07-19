@@ -25,6 +25,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var companionImageView: NSImageView?
     private var normalCompanionImage: NSImage?
     private var hoverCompanionImage: NSImage?
+    private var noseHoverCompanionImage: NSImage?
     private var timer: Timer?
     private var quotes: [Quote] = []
     private var recentQuoteIndexes: [Int] = []
@@ -74,6 +75,19 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .deletingLastPathComponent()
             .appendingPathComponent("assets")
             .appendingPathComponent("cat_companion_hover.png")
+    }
+
+    private var noseHoverCompanionImageURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("cat_companion_nose_hover.png")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("cat_companion_nose_hover.png")
     }
 
     private var zenLoopFontURL: URL {
@@ -199,6 +213,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
 
         normalCompanionImage = NSImage(contentsOf: companionImageURL)
         hoverCompanionImage = NSImage(contentsOf: hoverCompanionImageURL)
+        noseHoverCompanionImage = NSImage(contentsOf: noseHoverCompanionImageURL)
 
         let imageView = DominoImageView(frame: NSRect(origin: .zero, size: frame.size))
         imageView.imageScaling = .scaleProportionallyUpOrDown
@@ -214,8 +229,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
                 self?.hideSpeechBubble()
             }
         }
-        imageView.onNoseHoverChanged = { isHovering in
-            imageView.noseIsHot = isHovering
+        imageView.onNoseHoverChanged = { [weak self] isHovering in
+            self?.companionImageView?.image = isHovering ? self?.noseHoverCompanionImage : self?.hoverCompanionImage
         }
         imageView.onNoseClick = { [weak self] in
             self?.showQuoteEditor()
@@ -601,9 +616,6 @@ final class DominoImageView: NSImageView {
     var onNoseHoverChanged: ((Bool) -> Void)?
     var onNoseClick: (() -> Void)?
     var onBodyClick: (() -> Void)?
-    var noseIsHot = false {
-        didSet { needsDisplay = true }
-    }
     private var trackingArea: NSTrackingArea?
     private var isMouseInside = false
     private var isMouseOverNose = false
@@ -663,30 +675,6 @@ final class DominoImageView: NSImageView {
         onNoseHoverChanged?(nowOverNose)
     }
 
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        guard noseIsHot else { return }
-
-        NSColor(calibratedRed: 1.0, green: 0.43, blue: 0.58, alpha: 0.92).setFill()
-        let nose = NSBezierPath(ovalIn: noseRect.insetBy(dx: noseRect.width * 0.12, dy: noseRect.height * 0.08))
-        nose.fill()
-
-        NSColor(calibratedWhite: 0.02, alpha: 0.92).setFill()
-        let leftPupil = NSBezierPath(ovalIn: NSRect(
-            x: bounds.width * 0.472,
-            y: bounds.height * 0.61,
-            width: bounds.width * 0.018,
-            height: bounds.height * 0.024
-        ))
-        let rightPupil = NSBezierPath(ovalIn: NSRect(
-            x: bounds.width * 0.514,
-            y: bounds.height * 0.61,
-            width: bounds.width * 0.018,
-            height: bounds.height * 0.024
-        ))
-        leftPupil.fill()
-        rightPupil.fill()
-    }
 }
 
 final class QuoteEditorView: NSView, NSTextFieldDelegate {
