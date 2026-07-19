@@ -16,6 +16,7 @@ cp quotes.json "$resources_dir/quotes.json"
 cp assets/cat_companion.png "$resources_dir/assets/cat_companion.png"
 cp assets/cat_companion_hover.png "$resources_dir/assets/cat_companion_hover.png"
 cp assets/fonts/Dosis-Variable.ttf "$resources_dir/assets/fonts/Dosis-Variable.ttf"
+cp assets/fonts/ZenLoop-Regular.ttf "$resources_dir/assets/fonts/ZenLoop-Regular.ttf"
 
 cat > "$contents_dir/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>

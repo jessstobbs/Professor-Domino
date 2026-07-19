@@ -26,7 +26,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var recentQuoteIndexes: [Int] = []
     private var intervalMinutes = 180
     private var companionVisible = true
-    private let speechFontName = "Dosis"
+    private let speechFontName = "Zen Loop"
 
     private var quotesURL: URL {
         if let resourceURL = Bundle.main.resourceURL {
@@ -64,24 +64,24 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .appendingPathComponent("cat_companion_hover.png")
     }
 
-    private var dosisFontURL: URL {
+    private var zenLoopFontURL: URL {
         if let resourceURL = Bundle.main.resourceURL {
             return resourceURL
                 .appendingPathComponent("assets")
                 .appendingPathComponent("fonts")
-                .appendingPathComponent("Dosis-Variable.ttf")
+                .appendingPathComponent("ZenLoop-Regular.ttf")
         }
 
         return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
             .deletingLastPathComponent()
             .appendingPathComponent("assets")
             .appendingPathComponent("fonts")
-            .appendingPathComponent("Dosis-Variable.ttf")
+            .appendingPathComponent("ZenLoop-Regular.ttf")
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-        registerDosisFont()
+        registerSpeechFont()
         loadQuotes()
         configureMenu()
         configureCompanionWindow()
@@ -144,8 +144,8 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func registerDosisFont() {
-        CTFontManagerRegisterFontsForURL(dosisFontURL as CFURL, .process, nil)
+    private func registerSpeechFont() {
+        CTFontManagerRegisterFontsForURL(zenLoopFontURL as CFURL, .process, nil)
     }
 
     private func configureCompanionWindow() {
@@ -200,10 +200,10 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     }
 
     private func configureSpeechWindow(relativeTo companionFrame: NSRect) {
-        let bubbleSize = NSSize(width: 460, height: 300)
+        let bubbleSize = NSSize(width: 560, height: 222)
         let origin = NSPoint(
-            x: max(24, companionFrame.minX - bubbleSize.width + 78),
-            y: companionFrame.maxY - bubbleSize.height + 70
+            x: max(24, companionFrame.minX - bubbleSize.width + 88),
+            y: companionFrame.maxY - bubbleSize.height + 28
         )
         let window = NSWindow(
             contentRect: NSRect(origin: origin, size: bubbleSize),
@@ -222,7 +222,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         let bubbleView = SpeechBubbleView(frame: NSRect(origin: .zero, size: bubbleSize))
         let textField = NSTextField(labelWithString: "")
         textField.frame = speechTextFrame(for: bubbleSize)
-        textField.font = NSFont(name: speechFontName, size: 24) ?? NSFont.systemFont(ofSize: 22, weight: .medium)
+        textField.font = NSFont(name: speechFontName, size: 34) ?? NSFont.systemFont(ofSize: 24, weight: .regular)
         textField.textColor = NSColor(calibratedRed: 0.15, green: 0.12, blue: 0.10, alpha: 1)
         textField.maximumNumberOfLines = 5
         textField.lineBreakMode = .byWordWrapping
@@ -237,10 +237,10 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
 
     private func speechTextFrame(for bubbleSize: NSSize) -> NSRect {
         NSRect(
-            x: bubbleSize.width * 0.15,
-            y: bubbleSize.height * 0.39,
-            width: bubbleSize.width * 0.68,
-            height: bubbleSize.height * 0.36
+            x: bubbleSize.width * 0.11,
+            y: bubbleSize.height * 0.33,
+            width: bubbleSize.width * 0.69,
+            height: bubbleSize.height * 0.43
         )
     }
 
@@ -312,15 +312,15 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         speechTextField?.stringValue = body
         let fontSize: CGFloat
         if body.count > 90 {
-            fontSize = 18
+            fontSize = 25
         } else if body.count > 58 {
-            fontSize = 20
+            fontSize = 28
         } else if body.count > 36 {
-            fontSize = 22
+            fontSize = 31
         } else {
-            fontSize = 24
+            fontSize = 34
         }
-        speechTextField?.font = NSFont(name: speechFontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize, weight: .medium)
+        speechTextField?.font = NSFont(name: speechFontName, size: fontSize) ?? NSFont.systemFont(ofSize: fontSize, weight: .regular)
         speechHideWorkItem?.cancel()
         speechWindow?.orderFrontRegardless()
 
@@ -397,21 +397,23 @@ final class SpeechBubbleView: NSView {
     override var isFlipped: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
-        let scaleX = bounds.width / 800
-        let scaleY = bounds.height / 520
+        let scaleX = bounds.width / 760
+        let scaleY = bounds.height / 300
         func point(_ x: CGFloat, _ y: CGFloat) -> NSPoint {
             NSPoint(x: x * scaleX, y: y * scaleY)
         }
 
         let path = NSBezierPath()
-        path.move(to: point(394, 478))
-        path.curve(to: point(42, 220), controlPoint1: point(198, 478), controlPoint2: point(42, 368))
-        path.curve(to: point(366, 44), controlPoint1: point(42, 90), controlPoint2: point(170, 28))
-        path.curve(to: point(430, 52), controlPoint1: point(391, 46), controlPoint2: point(410, 48))
-        path.curve(to: point(519, 0), controlPoint1: point(445, 26), controlPoint2: point(476, 6))
-        path.curve(to: point(505, 76), controlPoint1: point(492, 19), controlPoint2: point(486, 45))
-        path.curve(to: point(746, 297), controlPoint1: point(662, 106), controlPoint2: point(758, 200))
-        path.curve(to: point(394, 478), controlPoint1: point(731, 418), controlPoint2: point(598, 478))
+        path.move(to: point(118, 282))
+        path.curve(to: point(18, 188), controlPoint1: point(60, 280), controlPoint2: point(24, 248))
+        path.curve(to: point(86, 56), controlPoint1: point(12, 126), controlPoint2: point(32, 78))
+        path.curve(to: point(324, 42), controlPoint1: point(122, 42), controlPoint2: point(190, 41))
+        path.line(to: point(622, 48))
+        path.curve(to: point(735, 12), controlPoint1: point(650, 22), controlPoint2: point(690, 8))
+        path.curve(to: point(738, 32), controlPoint1: point(748, 13), controlPoint2: point(752, 24))
+        path.curve(to: point(718, 112), controlPoint1: point(710, 49), controlPoint2: point(706, 74))
+        path.curve(to: point(642, 278), controlPoint1: point(733, 224), controlPoint2: point(708, 272))
+        path.curve(to: point(118, 282), controlPoint1: point(512, 290), controlPoint2: point(248, 290))
         path.close()
 
         NSGraphicsContext.saveGraphicsState()
@@ -425,7 +427,7 @@ final class SpeechBubbleView: NSView {
         NSGraphicsContext.restoreGraphicsState()
 
         NSColor(calibratedWhite: 0.06, alpha: 1).setStroke()
-        path.lineWidth = max(5, min(bounds.width, bounds.height) * 0.018)
+        path.lineWidth = max(6, min(bounds.width, bounds.height) * 0.035)
         path.lineCapStyle = .round
         path.lineJoinStyle = .round
         path.stroke()

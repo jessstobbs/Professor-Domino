@@ -1,16 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 520" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 300" fill="none">
   <path
-    d="M394 42
-       C198 42 42 152 42 300
-       C42 430 170 492 366 476
-       C391 474 410 472 430 468
-       C445 494 476 514 519 520
-       C492 501 486 475 505 444
-       C662 414 758 320 746 223
-       C731 102 598 42 394 42 Z"
+    d="M118 18
+       C60 20 24 52 18 112
+       C12 174 32 222 86 244
+       C122 258 190 259 324 258
+       L622 252
+       C650 278 690 292 735 288
+       C748 287 752 276 738 268
+       C710 251 706 226 718 188
+       C733 76 708 28 642 22
+       C512 10 248 10 118 18 Z"
     fill="#fffdf6"
     stroke="#111111"
-    stroke-width="14"
+    stroke-width="12"
     stroke-linecap="round"
     stroke-linejoin="round"/>
 </svg>
