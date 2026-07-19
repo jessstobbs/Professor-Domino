@@ -27,8 +27,10 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
     private var hoverCompanionImage: NSImage?
     private var noseHoverCompanionImage: NSImage?
     private var idleEarsBackImage: NSImage?
+    private var idleWinkImage: NSImage?
     private var timer: Timer?
     private var idleAnimationTimer: Timer?
+    private var standbyAnimationTimer: Timer?
     private var idleResetWorkItem: DispatchWorkItem?
     private var quotes: [Quote] = []
     private var recentQuoteIndexes: [Int] = []
@@ -106,6 +108,19 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
             .deletingLastPathComponent()
             .appendingPathComponent("assets")
             .appendingPathComponent("cat_companion_idle_ears_back.png")
+    }
+
+    private var idleWinkImageURL: URL {
+        if let resourceURL = Bundle.main.resourceURL {
+            return resourceURL
+                .appendingPathComponent("assets")
+                .appendingPathComponent("cat_companion_idle_wink.png")
+        }
+
+        return URL(fileURLWithPath: CommandLine.arguments.first ?? "")
+            .deletingLastPathComponent()
+            .appendingPathComponent("assets")
+            .appendingPathComponent("cat_companion_idle_wink.png")
     }
 
     private var zenLoopFontURL: URL {
@@ -233,6 +248,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         hoverCompanionImage = NSImage(contentsOf: hoverCompanionImageURL)
         noseHoverCompanionImage = NSImage(contentsOf: noseHoverCompanionImageURL)
         idleEarsBackImage = NSImage(contentsOf: idleEarsBackImageURL)
+        idleWinkImage = NSImage(contentsOf: idleWinkImageURL)
 
         let imageView = DominoImageView(frame: NSRect(origin: .zero, size: frame.size))
         imageView.imageScaling = .scaleProportionallyUpOrDown
@@ -270,7 +286,7 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         companionImageView = imageView
         configureSpeechWindow(relativeTo: frame)
         startIdleAnimation()
-        scheduleIdleEarTwitch()
+        scheduleStandbyAnimations()
     }
 
     private func updateDominoImage() {
@@ -285,21 +301,26 @@ final class QuoteCompanion: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func scheduleIdleEarTwitch() {
+    private func scheduleStandbyAnimations() {
         idleAnimationTimer?.invalidate()
         idleAnimationTimer = Timer.scheduledTimer(withTimeInterval: 11, repeats: true) { [weak self] _ in
-            self?.playIdleEarTwitch()
+            self?.playStandbyFrame(self?.idleEarsBackImage, duration: 0.42)
+        }
+        standbyAnimationTimer?.invalidate()
+        standbyAnimationTimer = Timer.scheduledTimer(withTimeInterval: 29, repeats: true) { [weak self] _ in
+            self?.playStandbyFrame(self?.idleWinkImage, duration: 0.65)
         }
     }
 
-    private func playIdleEarTwitch() {
+    private func playStandbyFrame(_ image: NSImage?, duration: TimeInterval) {
         guard !dominoIsHovered,
               !dominoNoseIsHovered,
               quoteEditorWindow?.isVisible != true,
-              speechWindow?.isVisible != true
+              speechWindow?.isVisible != true,
+              let image
         else { return }
 
-        companionImageView?.image = idleEarsBackImage
+        companionImageView?.image = image
         idleResetWorkItem?.cancel()
         let reset = DispatchWorkItem { [weak self] in
             guard let self,
@@ -688,7 +709,7 @@ final class DominoImageView: NSImageView {
 
     private var noseRect: NSRect {
         NSRect(
-            x: bounds.width * 0.455,
+            x: bounds.width * 0.435,
             y: bounds.height * 0.475,
             width: bounds.width * 0.095,
             height: bounds.height * 0.085
