@@ -24,13 +24,19 @@ jobs:
         include:
           - os: macos-latest
             script: dist:mac
+            arch: arm64
             artifact: professor-domino-mac
+            installer: Professor-Domino-mac-arm64.dmg
           - os: windows-latest
             script: dist:win
+            arch: x64
             artifact: professor-domino-windows
+            installer: Professor-Domino-win-x64.exe
           - os: ubuntu-latest
             script: dist:linux
+            arch: x64
             artifact: professor-domino-linux
+            installer: Professor-Domino-linux-x86_64.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -39,16 +45,19 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run ${{ matrix.script }} -- --publish never
+      - run: npm run ${{ matrix.script }} -- --${{ matrix.arch }} --publish never
+      - name: Stage installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifact
+          test -f "dist/${{ matrix.installer }}"
+          cp "dist/${{ matrix.installer }}" artifact/
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            dist/Professor-Domino-*.dmg
-            dist/Professor-Domino-*.zip
-            dist/Professor-Domino-*.exe
-            dist/Professor-Domino-*.AppImage
-            dist/Professor-Domino-*.deb
+          path: artifact/${{ matrix.installer }}
+          if-no-files-found: error
 
   android:
     runs-on: ubuntu-latest
@@ -74,6 +83,7 @@ jobs:
         with:
           name: professor-domino-android
           path: android-dist/Professor-Domino-android.apk
+          if-no-files-found: error
 
   publish:
     if: github.event_name == 'workflow_dispatch'
@@ -101,6 +111,26 @@ jobs:
               exit 1
             }
           done
+          find release-files -mindepth 1 -maxdepth 1 -type d -print -quit | grep -q . && {
+            echo "Release files must be flat files, not directories:"
+            find release-files -mindepth 1 -maxdepth 1 -type d -print
+            exit 1
+          }
+          find release-files -mindepth 1 -maxdepth 1 -type f \
+            ! -name "Professor-Domino-android.apk" \
+            ! -name "Professor-Domino-mac-arm64.dmg" \
+            ! -name "Professor-Domino-win-x64.exe" \
+            ! -name "Professor-Domino-linux-x86_64.AppImage" \
+            -print -quit | grep -q . && {
+              echo "Unexpected release asset:"
+              find release-files -mindepth 1 -maxdepth 1 -type f \
+                ! -name "Professor-Domino-android.apk" \
+                ! -name "Professor-Domino-mac-arm64.dmg" \
+                ! -name "Professor-Domino-win-x64.exe" \
+                ! -name "Professor-Domino-linux-x86_64.AppImage" \
+                -print
+              exit 1
+            }
       - name: Publish complete release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -123,10 +153,20 @@ jobs:
           )"
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" release-files/* --clobber
+            gh release upload "$RELEASE_TAG" \
+              release-files/Professor-Domino-android.apk \
+              release-files/Professor-Domino-mac-arm64.dmg \
+              release-files/Professor-Domino-win-x64.exe \
+              release-files/Professor-Domino-linux-x86_64.AppImage \
+              --clobber
             gh release edit "$RELEASE_TAG" --title "$title" --notes "$notes" --latest
           else
-            gh release create "$RELEASE_TAG" release-files/* --target "$GITHUB_SHA" --title "$title" --notes "$notes" --latest
+            gh release create "$RELEASE_TAG" \
+              release-files/Professor-Domino-android.apk \
+              release-files/Professor-Domino-mac-arm64.dmg \
+              release-files/Professor-Domino-win-x64.exe \
+              release-files/Professor-Domino-linux-x86_64.AppImage \
+              --target "$GITHUB_SHA" --title "$title" --notes "$notes" --latest
           fi
 
           gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' > uploaded-assets.txt

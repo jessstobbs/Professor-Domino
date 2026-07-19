@@ -1,6 +1,6 @@
 {
   "name": "quote-companion",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "description": "A tiny native macOS desktop companion that sends quotes throughout the day.",
   "main": "electron-src/main.js",
   "scripts": {
@@ -53,22 +53,20 @@
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        "dmg",
-        "zip"
+        "dmg"
       ]
     },
     "win": {
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ]
     },
     "linux": {
       "category": "Utility",
       "maintainer": "Jessica Stobbs <jessstobbs96@gmail.com>",
+      "artifactName": "Professor-Domino-linux-x86_64.${ext}",
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ]
     },
     "publish": [

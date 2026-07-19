@@ -20,6 +20,8 @@ const editorForm = document.querySelector("#editorForm");
 let quotes = [];
 let bubbleTimer;
 let quoteShownForHover = false;
+let dragStart;
+let didDrag = false;
 
 dominoImage.src = images.normal;
 paw.src = "../assets/pawprint.svg";
@@ -29,8 +31,9 @@ function setDominoImage(src) {
 }
 
 function showQuote(quote) {
-  const author = quote.author ? `\n- ${quote.author}` : "";
-  quoteText.textContent = `${quote.text}${author}`;
+  const text = typeof quote?.text === "string" && quote.text.trim() ? quote.text.trim() : "Add a few quotes and I will keep you company.";
+  const author = typeof quote?.author === "string" && quote.author.trim() ? `\n- ${quote.author.trim()}` : "";
+  quoteText.textContent = `${text}${author}`;
   paw.hidden = quoteText.textContent.length > 110;
   bubble.classList.add("visible");
   clearTimeout(bubbleTimer);
@@ -73,8 +76,30 @@ async function openEditor() {
   quotes = await window.domino.getQuotes();
   renderEditor();
   setDominoImage(images.editor);
-  editor.showModal();
+  if (!editor.open) editor.showModal();
 }
+
+function clearDrag() {
+  dragStart = null;
+}
+
+dominoButton.addEventListener("mousedown", (event) => {
+  if (event.button !== 0 || editor.open) return;
+  dragStart = { x: event.screenX, y: event.screenY };
+  didDrag = false;
+});
+
+window.addEventListener("mousemove", (event) => {
+  if (!dragStart) return;
+  const delta = { x: event.screenX - dragStart.x, y: event.screenY - dragStart.y };
+  if (Math.abs(delta.x) + Math.abs(delta.y) < 3) return;
+  didDrag = true;
+  dragStart = { x: event.screenX, y: event.screenY };
+  window.domino.moveWindow(delta);
+});
+
+window.addEventListener("mouseup", clearDrag);
+window.addEventListener("blur", clearDrag);
 
 dominoButton.addEventListener("mouseenter", () => {
   setDominoImage(images.hover);
@@ -91,6 +116,10 @@ dominoButton.addEventListener("mouseleave", () => {
 });
 
 dominoButton.addEventListener("click", () => {
+  if (didDrag) {
+    didDrag = false;
+    return;
+  }
   window.domino.showRandomQuote();
 });
 

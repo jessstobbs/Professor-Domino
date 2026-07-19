@@ -1,61 +1,59 @@
-@font-face {
-  font-family: "Dosis";
-  src: url("./Dosis-Variable.ttf") format("truetype");
-}
-
 * {
   box-sizing: border-box;
 }
 
 html {
   min-height: 100%;
-  color: #231f20;
-  background: #f8f3ea;
+  color: #26211f;
+  background:
+    linear-gradient(135deg, rgb(55 119 107 / 12%) 0 28%, transparent 28% 100%),
+    #f8f1e7;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  font-family: Dosis, system-ui, sans-serif;
+  font-family: ui-rounded, "Avenir Next", "Segoe UI", system-ui, sans-serif;
 }
 
 main {
   min-height: 100vh;
   display: grid;
   align-content: center;
-  gap: 34px;
+  gap: 26px;
   width: min(1100px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 48px 0;
+  padding: 34px 0 42px;
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 410px);
   align-items: center;
-  gap: 38px;
+  gap: clamp(20px, 4vw, 52px);
 }
 
 .eyebrow {
   margin: 0 0 10px;
-  color: #53756d;
-  font-size: 18px;
+  color: #316a61;
+  font-size: clamp(16px, 1.8vw, 19px);
   font-weight: 700;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(58px, 11vw, 124px);
-  line-height: 0.84;
+  max-width: 9ch;
+  font-size: clamp(58px, 10vw, 118px);
+  line-height: 0.88;
   letter-spacing: 0;
 }
 
 .lede {
   max-width: 580px;
-  margin: 26px 0 0;
+  margin: 22px 0 0;
   color: #4b403b;
-  font-size: clamp(22px, 3.2vw, 34px);
-  line-height: 1.08;
+  font-size: clamp(21px, 2.9vw, 32px);
+  line-height: 1.12;
 }
 
 .actions,
@@ -82,6 +80,10 @@ a {
   border: 1px solid rgb(35 31 32 / 16%);
   border-radius: 8px;
   box-shadow: 0 8px 20px rgb(35 31 32 / 7%);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
 }
 
 .primary,
@@ -89,7 +91,7 @@ a {
   min-width: 134px;
   padding: 12px 18px;
   text-align: center;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 800;
 }
 
@@ -102,9 +104,22 @@ a {
   background: #fffaf2;
 }
 
+.primary:hover,
+.secondary:hover,
+.phone a:hover,
+.downloads a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgb(35 31 32 / 12%);
+}
+
+a:focus-visible {
+  outline: 3px solid #f0b84b;
+  outline-offset: 4px;
+}
+
 .domino {
   width: 100%;
-  max-height: 560px;
+  max-height: min(56vh, 520px);
   object-fit: contain;
   filter: drop-shadow(0 24px 26px rgb(35 31 32 / 18%));
 }
@@ -126,13 +141,20 @@ a {
 }
 
 .downloads span {
-  color: #53756d;
+  color: #316a61;
   font-size: 18px;
   font-weight: 800;
 }
 
 .downloads strong {
   font-size: 22px;
+  line-height: 1.05;
+}
+
+.downloads small {
+  color: #6f625a;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .phone span {
@@ -142,6 +164,7 @@ a {
 
 .phone strong {
   font-size: 32px;
+  line-height: 1;
 }
 
 .phone small {
@@ -165,16 +188,51 @@ a {
 @media (max-width: 760px) {
   main {
     align-content: start;
-    padding-top: 30px;
+    gap: 18px;
+    padding-top: 24px;
   }
 
   .hero {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 8px;
   }
 
   .domino {
-    width: min(72vw, 340px);
+    grid-row: 1;
+    width: min(58vw, 260px);
     margin: 0 auto;
+  }
+
+  h1 {
+    max-width: 100%;
+    font-size: clamp(48px, 18vw, 74px);
+  }
+
+  .actions,
+  .phone,
+  .downloads {
+    gap: 10px;
+  }
+
+  .primary,
+  .secondary,
+  .phone a,
+  .downloads a {
+    flex-basis: 100%;
+  }
+
+  .primary,
+  .secondary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  main {
+    width: min(100% - 24px, 1100px);
+  }
+
+  .phone strong {
+    font-size: 28px;
   }
 }

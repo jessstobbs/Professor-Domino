@@ -17,6 +17,12 @@ let quoteTimer;
 let companionVisible = true;
 let lastMenuQuote = "Warming up...";
 
+const fallbackQuotes = [
+  { text: "Begin anywhere.", author: "John Cage" },
+  { text: "The work teaches you how to do it.", author: null },
+  { text: "Small steps still move the whole day.", author: null }
+];
+
 function userQuotesPath() {
   return path.join(app.getPath("documents"), "Professor Domino", "quotes.json");
 }
@@ -28,37 +34,31 @@ function ensureEditableQuotesFile() {
   if (fs.existsSync(defaultQuotesPath)) {
     fs.copyFileSync(defaultQuotesPath, target);
   } else {
-    fs.writeFileSync(
-      target,
-      JSON.stringify(
-        [
-          { text: "Begin anywhere.", author: "John Cage" },
-          { text: "The work teaches you how to do it.", author: null },
-          { text: "Small steps still move the whole day.", author: null }
-        ],
-        null,
-        2
-      )
-    );
+    fs.writeFileSync(target, JSON.stringify(fallbackQuotes, null, 2));
   }
+}
+
+function normalizeQuotes(nextQuotes) {
+  if (!Array.isArray(nextQuotes)) return fallbackQuotes;
+  return nextQuotes
+    .map((quote) => ({
+      text: typeof quote?.text === "string" ? quote.text.trim() : "",
+      author: typeof quote?.author === "string" && quote.author.trim() ? quote.author.trim() : null
+    }))
+    .filter((quote) => quote.text);
 }
 
 function loadQuotes() {
   ensureEditableQuotesFile();
   try {
-    quotes = JSON.parse(fs.readFileSync(userQuotesPath(), "utf8"));
-    if (!Array.isArray(quotes)) throw new Error("Quotes file must contain an array.");
+    quotes = normalizeQuotes(JSON.parse(fs.readFileSync(userQuotesPath(), "utf8")));
   } catch (error) {
-    quotes = [
-      { text: "Begin anywhere.", author: "John Cage" },
-      { text: "The work teaches you how to do it.", author: null },
-      { text: "Small steps still move the whole day.", author: null }
-    ];
+    quotes = fallbackQuotes;
   }
 }
 
 function saveQuotes(nextQuotes) {
-  quotes = nextQuotes;
+  quotes = normalizeQuotes(nextQuotes);
   ensureEditableQuotesFile();
   fs.writeFileSync(userQuotesPath(), JSON.stringify(quotes, null, 2));
   rebuildMenu();
@@ -76,7 +76,9 @@ function randomQuote() {
 }
 
 function quoteLabel(quote) {
-  return `"${quote.text}"${quote.author ? ` - ${quote.author}` : ""}`;
+  const text = typeof quote?.text === "string" && quote.text.trim() ? quote.text.trim() : "Add a few quotes and I will keep you company.";
+  const author = typeof quote?.author === "string" && quote.author.trim() ? ` - ${quote.author.trim()}` : "";
+  return `"${text}"${author}`;
 }
 
 function showQuoteNow() {
@@ -123,6 +125,14 @@ function createCompanionWindow() {
   }
 }
 
+function openEditor() {
+  if (!companionWindow) return;
+  companionVisible = true;
+  companionWindow.show();
+  companionWindow.webContents.send("open-editor");
+  rebuildMenu();
+}
+
 function trayImage() {
   const image = nativeImage.createFromPath(path.join(assetsPath, "cat_companion.png"));
   return image.resize({ width: 22, height: 22 });
@@ -149,7 +159,7 @@ function rebuildMenu() {
     { label: lastMenuQuote, enabled: false },
     { type: "separator" },
     { label: "Say Something Now", accelerator: "CmdOrCtrl+S", click: showQuoteNow },
-    { label: "Add Quote", accelerator: "CmdOrCtrl+A", click: () => companionWindow?.webContents.send("open-editor") },
+    { label: "Add Quote", accelerator: "CmdOrCtrl+A", click: openEditor },
     {
       label: companionVisible ? "Hide Companion" : "Show Companion",
       accelerator: "CmdOrCtrl+H",
@@ -191,6 +201,11 @@ app.whenReady().then(() => {
 ipcMain.handle("assets-path", () => assetsPath);
 ipcMain.handle("get-quotes", () => quotes);
 ipcMain.handle("save-quotes", (_event, nextQuotes) => saveQuotes(nextQuotes));
+ipcMain.on("move-window", (_event, delta) => {
+  if (!companionWindow || !delta || !Number.isFinite(delta.x) || !Number.isFinite(delta.y)) return;
+  const [x, y] = companionWindow.getPosition();
+  companionWindow.setPosition(Math.round(x + delta.x), Math.round(y + delta.y));
+});
 ipcMain.on("show-random-quote", showQuoteNow);
 
 app.on("window-all-closed", () => {
